@@ -1,0 +1,9 @@
+BLANK
+ArticleName
+ArticleIdentifier
+OrderedQuantity
+QuantityUnitCode
+UnitPriceAmount
+BLANK
+RowVatRatePercent
+BLANK

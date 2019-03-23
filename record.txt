@@ -25,14 +25,6 @@ BLANK
 BLANK
 InvoiceMethod
 BLANK
-BLANK
-ArticleName
-ArticleIdentifier
-OrderedQuantity
-QuantityUnitCode
-UnitPriceAmount
-BLANK
-RowVatRatePercent
-BLANK
+
 
 

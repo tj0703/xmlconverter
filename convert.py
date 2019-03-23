@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 import datetime
 import sys
 #import pdb 
+import random
 
 #user defined exception class to handle excetion during runtime
 class IError(RuntimeError):
@@ -10,14 +11,14 @@ class IError(RuntimeError):
 	def __str__(self): 
 		return(repr(self.value))
 
-#Converter class to parse the xml file and write the text into csv file.
-class Converter(object):
-#constructor method
-	def __init__(self, xmlPath, outPutPath, InvoiceRecords):
-		self.tree = ET.parse(xmlPath)
-		self.root = self.tree.getroot()
+class temp(object):
+	"""docstring for temp"""
+	def __init__(self, record, root):
+		super(temp, self).__init__()
+		self.root = root
+		self.records = record
 		self.fields = dict()
-		self.records = InvoiceRecords
+		self._funct()
 #method to extract text from the given element and its child and put them in fields = dict()
 	def _setElem(self, elemName, recordName):
 		#pdb.set_trace() 
@@ -33,14 +34,45 @@ class Converter(object):
 		if (record in self.fields):
 			return self.fields[record]
 		return ''
+#method to be used in inherited classes
+	def _funct(self):
+		pass
+		
+#Converter base class to parse the xml file and write the text into csv file.
+class Converter(object):
+#constructor method
+	def __init__(self, xmlPath, outPutPath, InvoiceRecords, InvoiceRowRecords):
+		self.tree = ET.parse(xmlPath)
+		self.root = self.tree.getroot()
+		self.rec = InvoiceRecords
+		self.rowrec = InvoiceRowRecords
+		self._parse()
+		#self.row = []
+
 #writes record in output file
 	def _writeCSV(self, outPutPath):
-		lines = self._toCSV()
-		output = ''.join(lines).encode('utf-8').strip()
+		#pdb.set_trace()
+		rows = [self.invoice] + [self.invoicerow]
+		lines = map(lambda x: x._toCSV(), rows)
+		output = '\n'.join(lines).encode('utf-8').strip()
 		with open(outPutPath, 'wb') as f:
 			f.write(output)
+
+	def _parse(self):
+		self.invoice = Invoice(self.rec, self.root)
+			#pdb.set_trace()
+			#self.invoicerows = map(lambda x: Invoicerows(self.rowrec, x), invoicerows)
+		#invoicerowroot = list(self.root.iter("InvoiceRow")) 
+		#for i in invoicerowroot:
+		#	self.row = Invoicerows(self.rowrec, i)
+		#self.invoicerow = list(self.row)
+		for invoicerowroot in self.root.findall("InvoiceRow"):
+			self.invoicerow = Invoicerows(self.rowrec, invoicerowroot)
+
+class Invoice(temp):
+		
 #method to extract invoice details
-	def _invoice(self, outPutPath):
+	def _funct(self):
 		for invoiceDetails in self.root.findall("InvoiceDetails"):
 			invoiceTypeText = self.root.find("InvoiceDetails/InvoiceTypeCode").text
 #if the typecode is not valid, trow error
@@ -60,9 +92,7 @@ class Converter(object):
 		self.__setDeliveryPostalAddr()
 		self.__setInvoiceDate()
 		self._setElem("InvoiceDetails/InvoiceFreeText", "InvoiceFreeText")
-#extracting invoicerow details		
-		for invoiceRows in self.root.iterfind("InvoiceRow"):
-			self._invoicerows()
+
 #date format change 	
 	def __setInvoiceDate(self):
 		elem = self.root.find("InvoiceDetails/InvoiceDate")
@@ -113,24 +143,28 @@ class Converter(object):
 		countryCode = countryCodeElem.text
 
 		self.fields["DeliveryPostalAddress"] = '\\'.join([name, street, postCode, town, countryCode])
+
+class Invoicerows(temp):
 #invoice row details gathered
-	def _invoicerows(self):
+	def _funct(self):
 		#pdb.set_trace()
-		self._setElem("InvoiceRow/ArticleName", "ArticleName")
-		self._setElem("InvoiceRow/ArticleIdentifier", "ArticleIdentifier")
-		self._setElem("InvoiceRow/OrderedQuantity", "OrderedQuantity")
-		self._setElem("InvoiceRow/UnitPriceAmount", "UnitPriceAmount")
-		self._setElem("InvoiceRow/RowVatRatePercent", "RowVatRatePercent")
+		#for rowdetail in self.root.findall("InvoiceRow"):
+		self._setElem("ArticleName", "ArticleName")
+		self._setElem("ArticleIdentifier", "ArticleIdentifier")
+		self._setElem("OrderedQuantity", "OrderedQuantity")
+		self._setElem("UnitPriceAmount", "UnitPriceAmount")
+		self._setElem("RowVatRatePercent", "RowVatRatePercent")
 		self.__setUnitCode()
 
 	def __setUnitCode(self):
-		quantity = self.root.find("InvoiceRow/OrderedQuantity")
+		quantity = self.root.find("OrderedQuantity")
 		if (quantity is None):
 			return
 		unitCode = quantity.get("QuantityUnitCode")
 		if (unitCode is None):
 			return
 		self.fields["QuantityUnitCode"] = unitCode
+
 #reading from the record text file and returning only valid string values 
 def readRecordList(fileName):
 	with open(fileName, 'r') as f:
@@ -151,11 +185,10 @@ def main():
 		outPutPath = 'exampleInvoice.csv'
 
 	InvoiceRecords = readRecordList("record.txt")
-	#InvoiceRowRecords = readRecordList("rowrecord.txt")
+	InvoiceRowRecords = readRecordList("rowrecords.txt")
 
 	try:
-		foo = Converter(xmlPath, outPutPath, InvoiceRecords)
-		foo._invoice(outPutPath)
+		foo = Converter(xmlPath, outPutPath, InvoiceRecords, InvoiceRowRecords)
 		foo._writeCSV(outPutPath)
 	except IOError as e:
 		print ('Error opening the xml file:', e.message)
