@@ -52,7 +52,7 @@ class Converter(object):
 #writes record in output file
 	def _writeCSV(self, outPutPath):
 		#pdb.set_trace()
-		rows = [self.invoice] + [self.invoicerow]
+		rows = [self.invoice] + self.invoicerow
 		lines = map(lambda x: x._toCSV(), rows)
 		output = '\n'.join(lines).encode('utf-8').strip()
 		with open(outPutPath, 'wb') as f:
@@ -60,14 +60,10 @@ class Converter(object):
 
 	def _parse(self):
 		self.invoice = Invoice(self.rec, self.root)
-			#pdb.set_trace()
-			#self.invoicerows = map(lambda x: Invoicerows(self.rowrec, x), invoicerows)
-		#invoicerowroot = list(self.root.iter("InvoiceRow")) 
-		#for i in invoicerowroot:
-		#	self.row = Invoicerows(self.rowrec, i)
-		#self.invoicerow = list(self.row)
-		for invoicerowroot in self.root.findall("InvoiceRow"):
-			self.invoicerow = Invoicerows(self.rowrec, invoicerowroot)
+		self.invoicerow = []
+		for invoicerowroot in self.root.iter("InvoiceRow"):
+			row = Invoicerows(self.rowrec, invoicerowroot)
+			self.invoicerow.append(row)
 
 class Invoice(temp):
 		
@@ -77,7 +73,7 @@ class Invoice(temp):
 			invoiceTypeText = self.root.find("InvoiceDetails/InvoiceTypeCode").text
 #if the typecode is not valid, trow error
 			if (not invoiceTypeText in ('O', 'M', 'T', 'K', 'N')):
-				raise ConError("The XML file does not conform to Finvoice 1.3")
+				raise IError("The XML file does not conform to Finvoice 1.3")
 
 			self.fields["InvoiceTypeCode"] = invoiceTypeText
 
@@ -106,7 +102,7 @@ class Invoice(temp):
 			dateFormat = dateFormat.replace('C', '').replace("YY", "%Y").replace("MM", "%m").replace("DD", "%d")
 			self.fields["InvoiceDate"] = datetime.datetime.strptime(elem.text, dateFormat).strftime('%d.%m.%Y')
 		except ValueError as e:
-			raise ConError("Date contained in InvoiceDate-element does not conform to the date format")
+			raise IError("Date contained in InvoiceDate-element does not conform to the date format")
 #buyer postal address details combined together
 	def __setBuyerPostalAddr(self):
 		name = self.root.find("BuyerPartyDetails/BuyerOrganisationName").text
